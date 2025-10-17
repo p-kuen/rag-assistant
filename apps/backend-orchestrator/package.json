@@ -1,0 +1,11 @@
+{
+  "name": "@rag-assistant/backend-orchestrator",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "cargo watch -x run",
+    "build": "cargo build --release",
+    "test": "cargo test"
+  },
+  "description": "Rust Backend Orchestrator für RAG Pipeline"
+}

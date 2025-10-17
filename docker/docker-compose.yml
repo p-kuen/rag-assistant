@@ -1,0 +1,218 @@
+version: "3.8"
+
+# Gemeinsames internes Netzwerk für alle Services
+networks:
+  rag-net:
+    driver: bridge
+
+# Persistent Volumes für Daten
+volumes:
+  meilisearch-data:
+    driver: local
+  llm-models:
+    driver: local
+
+services:
+  # ============================================================================
+  # Frontend - VueJS Chat & Admin Interface
+  # ============================================================================
+  frontend:
+    build:
+      context: ../apps/frontend
+      dockerfile: ../../docker/frontend.Dockerfile
+    container_name: rag-frontend
+    ports:
+      - "5173:80" # Nginx Production Server (extern erreichbar)
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    networks:
+      - rag-net
+    depends_on:
+      - backend-orchestrator
+    restart: unless-stopped
+
+  # ============================================================================
+  # Backend Orchestrator - Rust Backend für RAG-Pipeline
+  # ============================================================================
+  backend-orchestrator:
+    build:
+      context: ../apps/backend-orchestrator
+      dockerfile: ../../docker/backend.Dockerfile
+    container_name: rag-backend-orchestrator
+    ports:
+      - "8080:8080" # API Endpoint (extern erreichbar)
+    environment:
+      - RUST_LOG=info
+      - MEILISEARCH_URL=http://meilisearch:7700
+      - MEILISEARCH_API_KEY=${MEILISEARCH_API_KEY:-}
+      - EMBEDDING_API_URL=http://embedding-api:8080
+      - LLM_API_URL=http://llm-inference:8080
+      - SERVER_PORT=8080
+    networks:
+      - rag-net
+    depends_on:
+      - meilisearch
+      - embedding-api
+      - llm-inference
+    restart: unless-stopped
+    # Ressourcenlimits für Backend
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  # ============================================================================
+  # Meilisearch - Vektor- und Metadaten-Speicher
+  # ============================================================================
+  meilisearch:
+    image: getmeili/meilisearch:v1.7
+    container_name: rag-meilisearch
+    # KEIN externer Port - nur intern erreichbar
+    expose:
+      - "7700"
+    environment:
+      - MEILI_ENV=production
+      - MEILI_MASTER_KEY=${MEILISEARCH_API_KEY:-changeme}
+      - MEILI_NO_ANALYTICS=true
+      - MEILI_HTTP_ADDR=0.0.0.0:7700
+    volumes:
+      - meilisearch-data:/meili_data
+    networks:
+      - rag-net
+    restart: unless-stopped
+    # Ressourcenlimits für Meilisearch
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================================================
+  # Embedding API - Text Embeddings Inference (TEI)
+  # ============================================================================
+  embedding-api:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: rag-embedding-api
+    # KEIN externer Port - nur intern erreichbar
+    expose:
+      - "8080"
+    environment:
+      - MODEL_ID=${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      - REVISION=main
+      - MAX_BATCH_TOKENS=16384
+      - MAX_CLIENT_BATCH_SIZE=32
+    networks:
+      - rag-net
+    restart: unless-stopped
+    # Ressourcenlimits für Embedding Service
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          cpus: "1.0"
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Optional: GPU Support aktivieren
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ============================================================================
+  # LLM Inference - llama.cpp Server für Chat Completions
+  # ============================================================================
+  llm-inference:
+    image: ghcr.io/ggerganov/llama.cpp:server
+    container_name: rag-llm-inference
+    # KEIN externer Port - nur intern erreichbar
+    expose:
+      - "8080"
+    environment:
+      # Modell-Konfiguration
+      - MODEL=/models/model.gguf
+      - HOST=0.0.0.0
+      - PORT=8080
+      # Performance-Tuning
+      - N_GPU_LAYERS=0 # CPU-only, für GPU: Anzahl Layer auf GPU
+      - N_CTX=4096 # Context-Größe
+      - N_THREADS=4 # CPU Threads
+    volumes:
+      - llm-models:/models
+    networks:
+      - rag-net
+    restart: unless-stopped
+    # Ressourcenlimits für LLM Inference
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8G
+        reservations:
+          cpus: "2.0"
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    # Optional: GPU Support aktivieren
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+# ============================================================================
+# Hinweise zur Verwendung:
+# ============================================================================
+#
+# 1. Umgebungsvariablen:
+#    Erstelle eine .env Datei im docker/ Verzeichnis:
+#
+#    MEILISEARCH_API_KEY=your_secure_key
+#    EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
+#
+# 2. LLM Modell herunterladen:
+#    Vor dem ersten Start muss ein GGUF-Modell heruntergeladen werden:
+#
+#    docker run -v llm-models:/models alpine sh -c \
+#      "wget https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf -O /models/model.gguf"
+#
+# 3. Services starten:
+#    docker-compose -f docker/docker-compose.yml up -d
+#
+# 4. Logs anzeigen:
+#    docker-compose -f docker/docker-compose.yml logs -f
+#
+# 5. Services stoppen:
+#    docker-compose -f docker/docker-compose.yml down
+#
+# 6. Volumes löschen (Vorsicht - löscht alle Daten):
+#    docker-compose -f docker/docker-compose.yml down -v
+#
+# ============================================================================

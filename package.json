@@ -1,25 +1,28 @@
 {
-  "name": "vite-vue-typescript-starter",
+  "name": "rag-assistant-monorepo",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "description": "Ressourcenoptimierte Fullstack RAG-Plattform",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "dev": "pnpm --filter \"./apps/*\" --parallel dev",
+    "build": "pnpm --filter \"./apps/*\" build",
+    "dev:frontend": "pnpm --filter @rag-assistant/frontend dev",
+    "dev:backend": "pnpm --filter @rag-assistant/backend-orchestrator dev",
+    "build:frontend": "pnpm --filter @rag-assistant/frontend build",
+    "build:backend": "pnpm --filter @rag-assistant/backend-orchestrator build",
+    "docker:up": "docker-compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f docker/docker-compose.yml down",
+    "docker:logs": "docker-compose -f docker/docker-compose.yml logs -f"
   },
-  "dependencies": {
-    "lucide-vue-next": "^0.546.0",
-    "vue": "^3.4.38",
-    "vue-markdown-render": "^2.3.0",
-    "vue-router": "^4.6.3"
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
   },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.1.14",
-    "@vitejs/plugin-vue": "^5.1.3",
-    "tailwindcss": "^4.1.14",
-    "typescript": "^5.5.3",
-    "vite": "^5.4.2",
-    "vue-tsc": "^2.1.4"
-  }
+  "keywords": [
+    "rag",
+    "monorepo",
+    "vue",
+    "rust",
+    "meilisearch"
+  ]
 }
