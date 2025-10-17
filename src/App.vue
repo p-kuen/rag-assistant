@@ -1,107 +1,54 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { useRoute } from "vue-router";
+import { computed } from "vue";
 
-const route = useRoute()
-const isAdminRoute = computed(() => route.path === '/admin')
+const route = useRoute();
+const isAdminRoute = computed(() => route.path === "/admin");
 </script>
 
 <template>
-  <div class="app-container">
-    <nav class="main-nav">
-      <div class="nav-content">
-        <div class="nav-brand">
-          <h1>RAG Assistant</h1>
-        </div>
-        <div class="nav-links">
-          <router-link to="/" class="nav-link" :class="{ active: !isAdminRoute }">
-            Chat
-          </router-link>
-          <router-link to="/admin" class="nav-link" :class="{ active: isAdminRoute }">
-            Wissensverwaltung
-          </router-link>
-        </div>
-      </div>
-    </nav>
-    <main class="main-content">
-      <router-view />
-    </main>
-  </div>
+    <div class="flex flex-col h-screen">
+        <nav
+            class="bg-gray-100 dark:bg-gray-900 border-b border-gray-300 dark:border-gray-700 sticky top-0 z-[100]"
+        >
+            <div
+                class="max-w-[1400px] mx-auto px-6 md:px-4 flex justify-between items-center h-16 md:h-14"
+            >
+                <div>
+                    <h1
+                        class="text-xl md:text-lg font-semibold text-gray-900 dark:text-gray-100"
+                    >
+                        RAG Assistant
+                    </h1>
+                </div>
+                <div class="flex gap-2">
+                    <router-link
+                        to="/"
+                        class="px-4 py-2 md:px-3 md:py-1.5 md:text-sm rounded-md no-underline font-medium transition-all duration-200"
+                        :class="
+                            !isAdminRoute
+                                ? 'bg-accent text-white'
+                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+                        "
+                    >
+                        Chat
+                    </router-link>
+                    <router-link
+                        to="/admin"
+                        class="px-4 py-2 md:px-3 md:py-1.5 md:text-sm rounded-md no-underline font-medium transition-all duration-200"
+                        :class="
+                            isAdminRoute
+                                ? 'bg-accent text-white'
+                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+                        "
+                    >
+                        Wissensverwaltung
+                    </router-link>
+                </div>
+            </div>
+        </nav>
+        <main class="flex-1 overflow-hidden">
+            <router-view />
+        </main>
+    </div>
 </template>
-
-<style scoped>
-.app-container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-}
-
-.main-nav {
-  background-color: var(--color-bg-secondary);
-  border-bottom: 1px solid var(--color-border);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.nav-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 64px;
-}
-
-.nav-brand h1 {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.nav-links {
-  display: flex;
-  gap: 8px;
-}
-
-.nav-link {
-  padding: 8px 16px;
-  border-radius: 6px;
-  text-decoration: none;
-  color: var(--color-text-secondary);
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.nav-link:hover {
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-}
-
-.nav-link.active {
-  background-color: var(--color-accent);
-  color: white;
-}
-
-.main-content {
-  flex: 1;
-  overflow: hidden;
-}
-
-@media (max-width: 768px) {
-  .nav-content {
-    padding: 0 16px;
-    height: 56px;
-  }
-
-  .nav-brand h1 {
-    font-size: 18px;
-  }
-
-  .nav-link {
-    padding: 6px 12px;
-    font-size: 14px;
-  }
-}
-</style>
