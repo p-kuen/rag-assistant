@@ -1,7 +1,4 @@
-use crate::error::{RagError, Result};
 use crate::models::{ChatResponse, SearchResult};
-use crate::services::LlmService;
-use futures::StreamExt;
 
 pub struct GenerationService {
     llm_service: LlmService,
@@ -50,7 +47,7 @@ impl GenerationService {
     }
 
     fn build_system_prompt(&self) -> String {
-        r#"You are a helpful AI assistant that answers questions based on the provided context from a knowledge base. 
+        r#"You are a helpful AI assistant that answers questions based on the provided context from a knowledge base.
 
 Instructions:
 1. Use only the information provided in the context to answer questions

@@ -1,6 +1,6 @@
-use crate::error::{RagError, Result};
+use crate::error::RagError;
 use crate::models::{Document, DocumentChunk, DocumentMetadata};
-use text_splitter::{TextSplitter, ChunkConfig};
+use text_splitter::{ChunkConfig, TextSplitter};
 
 pub struct DocumentChunker {
     chunk_size: usize,
@@ -21,7 +21,7 @@ impl DocumentChunker {
 
     pub fn chunk_document(&self, document: &Document) -> Result<Vec<DocumentChunk>> {
         let mut chunks = Vec::new();
-        
+
         // Create text splitter with token-based chunking
         let splitter = TextSplitter::new(
             ChunkConfig::new(self.chunk_size)
@@ -84,7 +84,7 @@ impl DocumentChunker {
 
     pub fn chunk_text(&self, text: &str, source: &str) -> Result<Vec<DocumentChunk>> {
         let mut chunks = Vec::new();
-        
+
         let splitter = TextSplitter::new(
             ChunkConfig::new(self.chunk_size)
                 .with_overlap(self.chunk_overlap)

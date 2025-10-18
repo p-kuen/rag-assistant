@@ -148,7 +148,7 @@ const clearContent = () => {
             </button>
             <button
                 @click="saveContent"
-                class="md:w-auto w-full px-6 py-3 bg-accent text-white rounded-md font-medium text-sm transition-all hover:bg-accent-hover disabled:bg-gray-100 disabled:dark:bg-gray-800 disabled:text-gray-400 disabled:dark:text-gray-500 disabled:cursor-not-allowed"
+                class="md:w-auto w-full px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 rounded-md font-medium text-sm transition-all hover:bg-white hover:dark:bg-gray-900 hover:text-gray-900 hover:dark:text-gray-100 disabled:bg-gray-300 disabled:text-gray-500 disabled:opacity-70 disabled:cursor-not-allowed dark:disabled:bg-gray-700 dark:disabled:text-gray-400"
                 :disabled="!markdownContent.trim()"
             >
                 Speichern & Indexieren

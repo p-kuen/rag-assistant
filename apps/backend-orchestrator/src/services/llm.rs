@@ -1,7 +1,8 @@
 use crate::error::{RagError, Result};
 use async_openai::{
     types::{
-        ChatCompletionRequest, ChatCompletionRequestMessage, ChatCompletionRequestMessageArgs,
+        ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
+        ChatCompletionRequestUserMessage, ChatCompletionRequestUserMessageContent,
         CreateChatCompletionRequest, Role,
     },
     Client as OpenAiClient,
@@ -15,8 +16,8 @@ pub struct LlmService {
 
 impl LlmService {
     pub fn new() -> Result<Self> {
-        let llm_api_url = env::var("LLM_API_URL")
-            .unwrap_or_else(|_| "http://localhost:8080".to_string());
+        let llm_api_url =
+            env::var("LLM_API_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
         let config = async_openai::config::OpenAIConfig::new()
             .with_api_base(llm_api_url)
@@ -34,14 +35,19 @@ impl LlmService {
         context: &str,
     ) -> Result<impl futures::Stream<Item = Result<String>>> {
         let messages = vec![
-            ChatCompletionRequestMessageArgs::default()
-                .role(Role::System)
-                .content(system_prompt)
-                .build()?,
-            ChatCompletionRequestMessageArgs::default()
-                .role(Role::User)
-                .content(&format!("Context:\n{}\n\nUser Question: {}", context, user_message))
-                .build()?,
+            ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
+                content: system_prompt.to_owned(),
+                role: Role::System,
+                name: None,
+            }),
+            ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
+                content: ChatCompletionRequestUserMessageContent::Text(format!(
+                    "Context:\n{}\n\nUser Question: {}",
+                    context, user_message
+                )),
+                role: Role::User,
+                name: None,
+            }),
         ];
 
         let request = CreateChatCompletionRequest {
@@ -60,25 +66,23 @@ impl LlmService {
             .await
             .map_err(|e| RagError::LlmFailed(e.to_string()))?;
 
-        let token_stream = stream.map(|chunk_result| {
-            match chunk_result {
-                Ok(chunk) => {
-                    if let Some(choice) = chunk.choices.first() {
-                        if let Some(delta) = &choice.delta {
-                            if let Some(content) = &delta.content {
-                                Ok(content.clone())
-                            } else {
-                                Ok(String::new())
-                            }
+        let token_stream = stream.map(|chunk_result| match chunk_result {
+            Ok(chunk) => {
+                if let Some(choice) = chunk.choices.first() {
+                    if let Some(delta) = &choice.delta {
+                        if let Some(content) = &delta.content {
+                            Ok(content.clone())
                         } else {
                             Ok(String::new())
                         }
                     } else {
                         Ok(String::new())
                     }
+                } else {
+                    Ok(String::new())
                 }
-                Err(e) => Err(RagError::LlmFailed(e.to_string())),
             }
+            Err(e) => Err(RagError::LlmFailed(e.to_string())),
         });
 
         Ok(token_stream)
@@ -91,14 +95,19 @@ impl LlmService {
         context: &str,
     ) -> Result<String> {
         let messages = vec![
-            ChatCompletionRequestMessageArgs::default()
-                .role(Role::System)
-                .content(system_prompt)
-                .build()?,
-            ChatCompletionRequestMessageArgs::default()
-                .role(Role::User)
-                .content(&format!("Context:\n{}\n\nUser Question: {}", context, user_message))
-                .build()?,
+            ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
+                content: system_prompt.to_owned(),
+                role: Role::System,
+                name: None,
+            }),
+            ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {
+                content: ChatCompletionRequestUserMessageContent::Text(format!(
+                    "Context:\n{}\n\nUser Question: {}",
+                    context, user_message
+                )),
+                role: Role::User,
+                name: None,
+            }),
         ];
 
         let request = CreateChatCompletionRequest {

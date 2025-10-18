@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, nextTick } from "vue";
+import { ref, nextTick, Ref } from "vue";
 import ChatMessage from "../components/ChatMessage.vue";
-import type { Message, Source } from "../types";
+import type { Message } from "../types";
 import { apiService } from "../services/api";
-import { MessageSquare, Send } from "lucide-vue-next";
+import { LoaderCircleIcon, MessageSquare, Send } from "lucide-vue-next";
 
-const messages = ref<Message[]>([]);
+const messages = ref<Ref<Message>[]>([]);
 const userInput = ref("");
 const isLoading = ref(false);
 const messagesContainer = ref<HTMLElement | null>(null);
@@ -24,24 +24,24 @@ const sendMessage = async () => {
     const query = userInput.value.trim();
     if (!query || isLoading.value) return;
 
-    const userMessage: Message = {
+    const userMessage = ref<Message>({
         id: Date.now().toString(),
         type: "user",
         content: query,
         timestamp: new Date(),
-    };
+    });
 
     messages.value.push(userMessage);
     userInput.value = "";
     scrollToBottom();
 
-    const assistantMessage: Message = {
+    const assistantMessage = ref<Message>({
         id: (Date.now() + 1).toString(),
         type: "assistant",
-        content: "",
+        content: "Folgende Ergebnisse habe ich gefunden:\n",
         sources: [],
         timestamp: new Date(),
-    };
+    });
 
     messages.value.push(assistantMessage);
     isLoading.value = true;
@@ -49,36 +49,34 @@ const sendMessage = async () => {
     try {
         await apiService.chatStream(
             query,
-            (chunk: string) => {
-                assistantMessage.content += chunk;
-                scrollToBottom();
-            },
-            (sources: Source[]) => {
-                assistantMessage.sources = sources;
+            (result: string) => {
+                console.log("result", result);
+                assistantMessage.value.content += "\n\n";
+                assistantMessage.value.content += result;
                 scrollToBottom();
             },
             () => {
+                console.log("complete");
                 isLoading.value = false;
                 scrollToBottom();
             },
             (error: Error) => {
-                console.error('Chat error:', error);
-                assistantMessage.content = 
+                console.error("Chat error:", error);
+                assistantMessage.value.content =
                     "Entschuldigung, bei der Verarbeitung Ihrer Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.";
                 isLoading.value = false;
                 scrollToBottom();
             },
-            currentSessionId.value
+            currentSessionId.value,
         );
     } catch (error) {
-        console.error('Chat error:', error);
-        assistantMessage.content =
+        console.error("Chat error:", error);
+        assistantMessage.value.content =
             "Entschuldigung, bei der Verarbeitung Ihrer Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.";
         isLoading.value = false;
         scrollToBottom();
     }
 };
-
 
 const handleKeyPress = (event: KeyboardEvent) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -108,13 +106,13 @@ const handleKeyPress = (event: KeyboardEvent) => {
                         Starten Sie ein Gespräch
                     </h2>
                     <p class="text-base md:text-sm max-w-[400px]">
-                        Stellen Sie Fragen zu Ihren Dokumenten und erhalten Sie KI-gestützte
-                        Antworten mit Quellenangaben.
+                        Stellen Sie Fragen zu Ihren Dokumenten und erhalten Sie
+                        KI-gestützte Antworten mit Quellenangaben.
                     </p>
                 </div>
                 <ChatMessage
                     v-for="message in messages"
-                    :key="message.id"
+                    :key="message.value.id"
                     :message="message"
                 />
             </div>
@@ -135,14 +133,12 @@ const handleKeyPress = (event: KeyboardEvent) => {
                         :disabled="!userInput.trim() || isLoading"
                         class="flex-shrink-0 w-11 h-11 flex items-center justify-center bg-accent text-white border-0 rounded-lg transition-colors duration-200 hover:bg-accent-hover disabled:opacity-50"
                     >
-                        <Send
-                            v-if="!isLoading"
-                            :size="20"
-                        />
-                        <div
+                        <Send v-if="!isLoading" :size="20" />
+                        <LoaderCircleIcon
                             v-else
-                            class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                        ></div>
+                            :size="20"
+                            class="animate-spin"
+                        />
                     </button>
                 </div>
             </div>

@@ -1,5 +1,5 @@
 # Backend Dockerfile - Rust mit Multi-Stage Build
-FROM rust:1.75-slim AS builder
+FROM rust:1.90-slim AS builder
 
 WORKDIR /app
 
@@ -17,10 +17,10 @@ RUN rm -rf src
 
 # Source Code kopieren und bauen
 COPY src ./src
-RUN cargo build --release
+RUN touch src/main.rs && cargo build --release
 
 # Runtime Stage
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \

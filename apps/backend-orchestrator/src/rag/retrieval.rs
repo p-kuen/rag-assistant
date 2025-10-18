@@ -1,32 +1,27 @@
-use crate::error::{RagError, Result};
+use crate::error::RagError;
 use crate::models::SearchResult;
-use crate::services::{EmbeddingService, MeilisearchService};
+use crate::services::MeilisearchService;
 
 pub struct RetrievalService {
-    pub embedding_service: EmbeddingService,
+    // pub embedding_service: EmbeddingService,
     pub meilisearch_service: MeilisearchService,
 }
 
 impl RetrievalService {
-    pub fn new() -> Result<Self> {
-        let embedding_service = EmbeddingService::new()?;
-        let meilisearch_service = futures::executor::block_on(MeilisearchService::new())?;
+    pub fn new() -> Self {
+        let meilisearch_service = MeilisearchService::new();
 
-        Ok(Self {
-            embedding_service,
+        Self {
             meilisearch_service,
-        })
+        }
     }
 
-    pub async fn retrieve_relevant_chunks(
+    async fn retrieve_relevant_chunks(
         &self,
         query: &str,
         limit: usize,
         filters: Option<&str>,
-    ) -> Result<Vec<SearchResult>> {
-        // Generate embedding for the query
-        let _query_embedding = self.embedding_service.generate_embedding(query).await?;
-
+    ) -> Result<Vec<SearchResult>, meilisearch_sdk::errors::Error> {
         // Perform hybrid search in Meilisearch
         let results = self
             .meilisearch_service
@@ -46,7 +41,7 @@ impl RetrievalService {
         &self,
         query: &str,
         limit: usize,
-    ) -> Result<(Vec<SearchResult>, String)> {
+    ) -> Result<(Vec<SearchResult>, String), RagError> {
         let results = self.retrieve_relevant_chunks(query, limit, None).await?;
 
         // Build context from retrieved chunks
@@ -60,7 +55,7 @@ impl RetrievalService {
 
         for (i, result) in results.iter().enumerate() {
             let mut chunk_context = format!("[Source {}: {}]\n", i + 1, result.source_file);
-            
+
             if let Some(h1) = &result.hierarchy_lvl1 {
                 chunk_context.push_str(&format!("Section: {}\n", h1));
             }

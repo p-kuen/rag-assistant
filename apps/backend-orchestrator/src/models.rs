@@ -1,6 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DocumentMetadata {
@@ -13,16 +11,12 @@ pub struct DocumentMetadata {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DocumentChunk {
+pub struct InputDocument {
     pub id: String,
+    pub title: Option<String>,
     pub content: String,
-    pub metadata: DocumentMetadata,
-    pub hierarchy_lvl1: Option<String>,
-    pub hierarchy_lvl2: Option<String>,
-    pub hierarchy_lvl3: Option<String>,
-    pub chunk_index: usize,
-    pub source_file: String,
-    pub embedding: Option<Vec<f32>>,
+    pub metadata: Option<DocumentMetadata>,
+    pub source_file: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,20 +25,16 @@ pub struct Document {
     pub title: String,
     pub content: String,
     pub metadata: DocumentMetadata,
-    pub chunks: Vec<DocumentChunk>,
+    pub chunks: Vec<InputDocument>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub id: String,
+    pub title: String,
     pub content: String,
     pub metadata: DocumentMetadata,
-    pub hierarchy_lvl1: Option<String>,
-    pub hierarchy_lvl2: Option<String>,
-    pub hierarchy_lvl3: Option<String>,
-    pub chunk_index: usize,
-    pub source_file: String,
-    pub score: f32,
+    pub source_file: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,7 +59,6 @@ pub struct UploadRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UploadResponse {
-    pub task_id: String,
     pub status: String,
 }
 
@@ -97,7 +86,6 @@ pub struct DocumentInfo {
     pub title: String,
     pub status: String,
     pub created_at: String,
-    pub chunk_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,21 +93,9 @@ pub struct DocumentListResponse {
     pub documents: Vec<DocumentInfo>,
 }
 
-// Task management
-pub type TaskStore = std::sync::Arc<std::sync::RwLock<HashMap<String, TaskStatus>>>;
+// // Task management
+// pub type TaskStore = std::sync::Arc<std::sync::RwLock<HashMap<String, TaskStatus>>>;
 
-pub fn create_task_store() -> TaskStore {
-    std::sync::Arc::new(std::sync::RwLock::new(HashMap::new()))
-}
-
-pub fn generate_task_id() -> String {
-    Uuid::new_v4().to_string()
-}
-
-pub fn generate_document_id() -> String {
-    Uuid::new_v4().to_string()
-}
-
-pub fn generate_chunk_id() -> String {
-    Uuid::new_v4().to_string()
-}
+// pub fn create_task_store() -> TaskStore {
+//     std::sync::Arc::new(std::sync::RwLock::new(HashMap::new()))
+// }

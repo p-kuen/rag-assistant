@@ -30,11 +30,11 @@ RUN git clone https://github.com/ggml-org/llama.cpp.git && \
 RUN mkdir -p /app/models
 
 # Copy model download script
-COPY ../services/llm-inference/download_model.sh /app/
+COPY services/llm-inference/download_model.sh /app/
 RUN chmod +x /app/download_model.sh
 
 # Copy server configuration
-COPY ../services/llm-inference/server_config.sh /app/
+COPY services/llm-inference/server_config.sh /app/
 RUN chmod +x /app/server_config.sh
 
 # Expose port

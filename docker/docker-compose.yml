@@ -1,16 +1,7 @@
-version: "3.8"
-
 # Gemeinsames internes Netzwerk für alle Services
 networks:
   rag-net:
     driver: bridge
-
-# Persistent Volumes für Daten
-volumes:
-  meilisearch-data:
-    driver: local
-  llm-models:
-    driver: local
 
 services:
   # ============================================================================
@@ -18,8 +9,8 @@ services:
   # ============================================================================
   frontend:
     build:
-      context: ../apps/frontend
-      dockerfile: ../../docker/frontend.Dockerfile
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
     container_name: rag-frontend
     ports:
       - "5173:80" # Nginx Production Server (extern erreichbar)
@@ -44,7 +35,7 @@ services:
     environment:
       - RUST_LOG=info
       - MEILISEARCH_URL=http://meilisearch:7700
-      - MEILISEARCH_API_KEY=${MEILISEARCH_API_KEY:-}
+      - MEILISEARCH_API_KEY=${MEILISEARCH_API_KEY}
       - EMBEDDING_API_URL=http://embedding-api:8080
       - LLM_API_URL=http://llm-inference:8080
       - SERVER_PORT=8080
@@ -55,8 +46,8 @@ services:
         condition: service_healthy
       embedding-api:
         condition: service_healthy
-      llm-inference:
-        condition: service_healthy
+      # llm-inference:
+      #   condition: service_healthy
     restart: unless-stopped
     # Ressourcenlimits für Backend
     deploy:
@@ -72,19 +63,19 @@ services:
   # Meilisearch - Vektor- und Metadaten-Speicher
   # ============================================================================
   meilisearch:
-    image: getmeili/meilisearch:v1.7
+    image: getmeili/meilisearch
     container_name: rag-meilisearch
+    ports:
+      - 7700:7700
     # KEIN externer Port - nur intern erreichbar
     expose:
       - "7700"
     environment:
-      - MEILI_ENV=production
-      - MEILI_MASTER_KEY=${MEILISEARCH_API_KEY:-changeme}
+      - MEILI_ENV=development
+      - MEILI_MASTER_KEY=${MEILISEARCH_API_KEY}
       - MEILI_NO_ANALYTICS=true
-      - MEILI_HTTP_ADDR=0.0.0.0:7700
     volumes:
       - meilisearch-data:/meili_data
-      - ../services/meilisearch/init_meilisearch.sh:/init_meilisearch.sh:ro
     networks:
       - rag-net
     restart: unless-stopped
@@ -103,30 +94,18 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    # Initialize Meilisearch after container starts
-    command: >
-      sh -c "
-        meilisearch --http-addr 0.0.0.0:7700 &
-        sleep 10 &&
-        chmod +x /init_meilisearch.sh &&
-        /init_meilisearch.sh &&
-        wait
-      "
 
   # ============================================================================
   # Embedding API - Text Embeddings Inference (TEI)
   # ============================================================================
   embedding-api:
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    image: ollama/ollama
     container_name: rag-embedding-api
-    # KEIN externer Port - nur intern erreichbar
-    expose:
-      - "8080"
+    volumes:
+      - embedding_ollama_data:/root/.ollama
+      - ../services/embedding-api/entrypoint.sh:/entrypoint.sh
     environment:
-      - MODEL_ID=${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
-      - REVISION=main
-      - MAX_BATCH_TOKENS=16384
-      - MAX_CLIENT_BATCH_SIZE=32
+      - OLLAMA_HOST=0.0.0.0
     networks:
       - rag-net
     restart: unless-stopped
@@ -140,11 +119,11 @@ services:
           cpus: "1.0"
           memory: 2G
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: "ollama --version && ollama ps || exit 1"
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 10s
     # Optional: GPU Support aktivieren
     # deploy:
     #   resources:
@@ -157,49 +136,44 @@ services:
   # ============================================================================
   # LLM Inference - llama.cpp Server für Chat Completions
   # ============================================================================
-  llm-inference:
-    build:
-      context: ../services/llm-inference
-      dockerfile: ../../docker/llm-inference.Dockerfile
-    container_name: rag-llm-inference
-    # KEIN externer Port - nur intern erreichbar
-    expose:
-      - "8080"
-    environment:
-      # Modell-Konfiguration
-      - LLAMA_THREADS=${LLAMA_THREADS:-4}
-      - LLAMA_GPU_LAYERS=${LLAMA_GPU_LAYERS:-0}
-      # Performance-Tuning
-      - LLAMA_CUBLAS=1
-      - LLAMA_CUDA=1
-    volumes:
-      - llm-models:/app/models
-    networks:
-      - rag-net
-    restart: unless-stopped
-    # Ressourcenlimits für LLM Inference
-    deploy:
-      resources:
-        limits:
-          cpus: "4.0"
-          memory: 8G
-        reservations:
-          cpus: "2.0"
-          memory: 4G
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-    # Optional: GPU Support aktivieren
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+  # llm-inference:
+  #   image: ollama/ollama
+  #   container_name: rag-llm-inference
+  #   environment:
+  #     - OLLAMA_HOST=0.0.0.0
+  #   # KEIN externer Port - nur intern erreichbar
+  #   expose:
+  #     - "8080"
+  #   volumes:
+  #     - llm_ollama_data:/root/.ollama
+  #     - ../services/llm-inference/entrypoint.sh:/entrypoint.sh
+  #   networks:
+  #     - rag-net
+  #   restart: unless-stopped
+  #   entrypoint: ["/entrypoint.sh"]
+  #   # Ressourcenlimits für LLM Inference
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "4.0"
+  #         memory: 8G
+  #       reservations:
+  #         cpus: "2.0"
+  #         memory: 4G
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 120s
+  # Optional: GPU Support aktivieren
+  # deploy:
+  #   resources:
+  #     reservations:
+  #       devices:
+  #         - driver: nvidia
+  #           count: 1
+  #           capabilities: [gpu]
 # ============================================================================
 # Hinweise zur Verwendung:
 # ============================================================================
@@ -229,3 +203,9 @@ services:
 #    docker-compose -f docker/docker-compose.yml down -v
 #
 # ============================================================================
+
+# Persistent Volumes für Daten
+volumes:
+  meilisearch-data:
+  embedding_ollama_data:
+  llm_ollama_data:

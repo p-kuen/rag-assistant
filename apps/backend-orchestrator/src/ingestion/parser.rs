@@ -1,7 +1,5 @@
-use crate::error::{RagError, Result};
 use crate::models::{Document, DocumentMetadata};
 use pulldown_cmark::{html, Options, Parser};
-use serde_yaml;
 use std::collections::HashMap;
 
 pub struct MarkdownParser;
