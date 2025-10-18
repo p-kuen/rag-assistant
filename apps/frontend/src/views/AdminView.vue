@@ -1,73 +1,129 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import DocumentUpload from "../components/DocumentUpload.vue";
 import ManualInput from "../components/ManualInput.vue";
 import TaskStatus from "../components/TaskStatus.vue";
 import type { UploadTask, DocumentMetadata } from "../types";
+import { apiService } from "../services/api";
 import { FolderIcon, PencilIcon } from "lucide-vue-next";
 
 const tasks = ref<UploadTask[]>([]);
 const activeTab = ref<"upload" | "manual">("upload");
 
 const handleUpload = async (file: File, metadata: DocumentMetadata) => {
-    const taskId = Date.now().toString();
+    try {
+        const response = await apiService.uploadDocument(file, metadata);
+        
+        const newTask: UploadTask = {
+            id: response.task_id,
+            filename: file.name,
+            status: "processing",
+            uploadedAt: new Date(),
+        };
 
-    const newTask: UploadTask = {
-        id: taskId,
-        filename: file.name,
-        status: "processing",
-        uploadedAt: new Date(),
-    };
-
-    tasks.value.unshift(newTask);
-
-    await simulateUpload(file, metadata, taskId);
+        tasks.value.unshift(newTask);
+        
+        // Start polling for task status
+        pollTaskStatus(response.task_id);
+    } catch (error) {
+        console.error('Upload error:', error);
+        // Add error task to show failure
+        const errorTask: UploadTask = {
+            id: Date.now().toString(),
+            filename: file.name,
+            status: "failed",
+            uploadedAt: new Date(),
+            error: error instanceof Error ? error.message : 'Upload failed',
+        };
+        tasks.value.unshift(errorTask);
+    }
 };
 
 const handleManualSave = async (
     content: string,
     metadata: DocumentMetadata,
 ) => {
-    const taskId = Date.now().toString();
-    const filename = `manual-input-${new Date().toISOString().split("T")[0]}.md`;
+    try {
+        const title = metadata.title || `manual-input-${new Date().toISOString().split("T")[0]}.md`;
+        const response = await apiService.uploadText(content, title, metadata);
+        
+        const newTask: UploadTask = {
+            id: response.task_id,
+            filename: title,
+            status: "processing",
+            uploadedAt: new Date(),
+        };
 
-    const newTask: UploadTask = {
-        id: taskId,
-        filename: filename,
-        status: "processing",
-        uploadedAt: new Date(),
+        tasks.value.unshift(newTask);
+        
+        // Start polling for task status
+        pollTaskStatus(response.task_id);
+    } catch (error) {
+        console.error('Manual save error:', error);
+        // Add error task to show failure
+        const errorTask: UploadTask = {
+            id: Date.now().toString(),
+            filename: `manual-input-${new Date().toISOString().split("T")[0]}.md`,
+            status: "failed",
+            uploadedAt: new Date(),
+            error: error instanceof Error ? error.message : 'Save failed',
+        };
+        tasks.value.unshift(errorTask);
+    }
+};
+
+const pollTaskStatus = async (taskId: string) => {
+    const pollInterval = 2000; // Poll every 2 seconds
+    const maxAttempts = 30; // Max 1 minute of polling
+    let attempts = 0;
+
+    const poll = async () => {
+        try {
+            const status = await apiService.getTaskStatus(taskId);
+            const task = tasks.value.find((t) => t.id === taskId);
+            
+            if (task) {
+                task.status = status.status;
+                if (status.error) {
+                    task.error = status.error;
+                }
+            }
+
+            // Continue polling if still processing and under max attempts
+            if (status.status === 'processing' && attempts < maxAttempts) {
+                attempts++;
+                setTimeout(poll, pollInterval);
+            }
+        } catch (error) {
+            console.error('Error polling task status:', error);
+            const task = tasks.value.find((t) => t.id === taskId);
+            if (task) {
+                task.status = "failed";
+                task.error = 'Failed to check status';
+            }
+        }
     };
 
-    tasks.value.unshift(newTask);
-
-    await simulateManualSave(content, metadata, taskId);
+    // Start polling
+    setTimeout(poll, pollInterval);
 };
 
-const simulateUpload = async (
-    _file: File,
-    _metadata: DocumentMetadata,
-    taskId: string,
-) => {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    const task = tasks.value.find((t) => t.id === taskId);
-    if (task) {
-        task.status = "succeeded";
+// Load existing tasks on mount
+onMounted(async () => {
+    try {
+        const response = await apiService.listDocuments();
+        // Convert document list to task format for display
+        const existingTasks: UploadTask[] = response.documents.map(doc => ({
+            id: doc.id,
+            filename: doc.title,
+            status: doc.status === 'indexed' ? 'succeeded' : 'processing',
+            uploadedAt: new Date(doc.created_at),
+        }));
+        tasks.value = existingTasks;
+    } catch (error) {
+        console.error('Error loading documents:', error);
     }
-};
-
-const simulateManualSave = async (
-    _content: string,
-    _metadata: DocumentMetadata,
-    taskId: string,
-) => {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const task = tasks.value.find((t) => t.id === taskId);
-    if (task) {
-        task.status = "succeeded";
-    }
-};
+});
 </script>
 
 <template>

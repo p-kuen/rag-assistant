@@ -39,10 +39,10 @@ const handleFileInput = (event: Event) => {
 };
 
 const handleFileSelect = (file: File) => {
-    if (file.name.endsWith(".md") || file.name.endsWith(".pdf")) {
+    if (file.name.endsWith(".md")) {
         selectedFile.value = file;
     } else {
-        alert("Please select a .md or .pdf file");
+        alert("Please select a .md (Markdown) file. PDF support is planned for future releases.");
     }
 };
 
@@ -85,7 +85,7 @@ const uploadDocument = () => {
             <input
                 type="file"
                 id="file-input"
-                accept=".md,.pdf"
+                accept=".md"
                 @change="handleFileInput"
                 class="hidden"
             />
@@ -119,7 +119,7 @@ const uploadDocument = () => {
                 >
                     Browse files
                 </label>
-                <p class="text-xs mt-2">Supported: .md, .pdf</p>
+                <p class="text-xs mt-2">Supported: .md (Markdown files only)</p>
             </div>
 
             <div

@@ -16,12 +16,13 @@ export interface Source {
 export interface UploadTask {
   id: string
   filename: string
-  status: 'processing' | 'succeeded' | 'failed'
+  status: 'pending' | 'processing' | 'succeeded' | 'failed'
   uploadedAt: Date
   error?: string
 }
 
 export interface DocumentMetadata {
+  title?: string
   tags?: string[]
   type?: string
   date?: string
