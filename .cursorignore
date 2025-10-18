@@ -1,0 +1,7 @@
+# Cursor Ignore File
+# This file controls what Cursor can see and access
+# Note: Cursor automatically respects .gitignore rules
+
+# Keep .env.example files accessible for Cursor
+!.env.example
+!docker/.env.example

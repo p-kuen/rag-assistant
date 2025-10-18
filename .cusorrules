@@ -1,0 +1,61 @@
+# PROJEKT: Ressourcenoptimierte Fullstack RAG-Plattform (On-Premise)
+
+# OBERSTE PRIORITÄT:
+# MAXIMALE RESSOURCENEFFIZIENZ. System ist für den On-Premise-Betrieb konzipiert.
+# KEINE Cloud-APIs (AWS, GCP, Azure, OpenAI) verwenden.
+
+# ----------------------------------------------------------------------
+# I. MONOREPO-STRUKTUR & PFADREGELN (Zwingend einzuhalten)
+# ----------------------------------------------------------------------
+
+# Das Projekt ist ein Pnpm/Turborepo Monorepo. Alle Pfadangaben MÜSSEN respektiert werden.
+# 1. FRONTEND: apps/frontend/ (VueJS, TypeScript)
+# 2. ORCHESTRATOR: apps/backend-orchestrator/ (Rust, Actix/Axum, RAG-Logik)
+# 3. EMBEDDING: services/embedding-api/ (Text Embeddings Inference (TEI) Docker)
+# 4. LLM INFERENCE: services/llm-inference/ (llama.cpp Server Docker)
+# 5. RETRIEVAL ENGINE: services/meilisearch/ (Meilisearch Docker)
+# 6. ORCHESTRIERUNG: docker/ (docker-compose.yml und Dockerfiles)
+
+# ----------------------------------------------------------------------
+# II. TECHNOLOGIE & ARCHITEKTUR-PRINZIPIEN
+# ----------------------------------------------------------------------
+
+# ARCHITEKTUR-PRINZIP: Performance über Komfort. Nutze Vanilla llama.cpp (kein Ollama) und native Rust Crates (kein Python GIL).
+
+# STANDARDISIERUNG: Kommunikation zwischen Rust Orchestrator und den Inference Services (LLM & Embedder) MUSS das **OpenAI API-Protokoll** verwenden (Chat Completions & Embeddings).
+
+# DATENSTROM: Die LLM-Antwort MUSS von services/llm-inference über den Rust Orchestrator zum apps/frontend per **SERVER-SENT EVENTS (SSE) gestreamt** werden.
+
+# ----------------------------------------------------------------------
+# III. KOMPONENTEN-ANFORDERUNGEN
+# ----------------------------------------------------------------------
+
+# A. FRONTEND (apps/frontend):
+# - Quelle: Die Chat-UI MUSS die **Source Attribution** (Metadaten der Top-k Chunks) prominent anzeigen.
+# - Ingestion: Die Wissensverwaltung MUSS Markdown-Editor, Live-Vorschau und ein Status-Dashboard für asynchrone Indexierungs-Tasks enthalten.
+
+# B. ORCHESTRATOR (apps/backend-orchestrator):
+# - Ingestion: Die Pipeline MUSS performantes, natives Rust Parsing/Chunking (z.B. markdown-parser, extractous Crates) nutzen.
+# - Inference: Der RAG-Workflow MUSS in Rust implementiert werden (Query -> Embedder -> Meilisearch Hybrid Call -> Context Compiling -> LLM Streaming Call).
+
+# C. INFERENCE & RETRIEVAL (services/):
+# - Retrieval: Meilisearch MUSS für **Hybrid Search** (Vektor + Keyword) und Metadaten-Filterung konfiguriert werden.
+# - Docker: Alle Services MÜSSEN über `docker/docker-compose.yml` mit **expliziten Ressourcenlimits** (CPU, RAM) und **Persistent Volumes** für Modelldateien/Indexdaten definiert werden.
+# - Orchestrierung: AUSSCHLIESSLICH Docker Compose verwenden. KEINE Makefiles oder andere Build-Tools.
+
+# ----------------------------------------------------------------------
+# IV. DOCKER-ORCHESTRIERUNG (Zwingend einzuhalten)
+# ----------------------------------------------------------------------
+
+# SETUP-PRINZIP: Das gesamte System MUSS über `docker/docker-compose.yml` orchestriert werden.
+# - Alle Services (frontend, backend-rust, meilisearch, embedding-api, llm-api) in einer Datei
+# - Explizite Ressourcenlimits für alle Container (deploy.resources.limits)
+# - Persistent Volumes für Datenpersistenz
+# - Internes Docker-Netzwerk (rag-net) für Service-Kommunikation
+# - KEINE Makefiles, KEINE separaten Build-Scripts - nur Docker Compose
+
+# SERVICE-MANAGEMENT:
+# - Start: `docker compose -f docker/docker-compose.yml up -d`
+# - Stop: `docker compose -f docker/docker-compose.yml down`
+# - Logs: `docker compose -f docker/docker-compose.yml logs -f [service]`
+# - Build: `docker compose -f docker/docker-compose.yml build`
