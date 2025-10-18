@@ -51,9 +51,12 @@ services:
     networks:
       - rag-net
     depends_on:
-      - meilisearch
-      - embedding-api
-      - llm-inference
+      meilisearch:
+        condition: service_healthy
+      embedding-api:
+        condition: service_healthy
+      llm-inference:
+        condition: service_healthy
     restart: unless-stopped
     # Ressourcenlimits für Backend
     deploy:
@@ -81,6 +84,7 @@ services:
       - MEILI_HTTP_ADDR=0.0.0.0:7700
     volumes:
       - meilisearch-data:/meili_data
+      - ../services/meilisearch/init_meilisearch.sh:/init_meilisearch.sh:ro
     networks:
       - rag-net
     restart: unless-stopped
@@ -99,6 +103,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    # Initialize Meilisearch after container starts
+    command: >
+      sh -c "
+        meilisearch --http-addr 0.0.0.0:7700 &
+        sleep 10 &&
+        chmod +x /init_meilisearch.sh &&
+        /init_meilisearch.sh &&
+        wait
+      "
 
   # ============================================================================
   # Embedding API - Text Embeddings Inference (TEI)

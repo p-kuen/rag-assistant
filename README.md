@@ -8,12 +8,13 @@ Ein modulares, Docker-basiertes RAG (Retrieval-Augmented Generation) System mit 
 
 ## 🚀 Features
 
-- **Chat-Assistent**: Interaktive RAG-basierte Konversation mit Quellenangaben
-- **Wissensverwaltung**: Dokument-Upload und manuelle Markdown-Eingabe
-- **Hybrid Search**: Kombination aus Vektor- und Keyword-Suche via Meilisearch
-- **Streaming Responses**: Real-time Token-Streaming vom LLM
-- **Ressourcenoptimiert**: Kompakte Modelle und effiziente Container-Orchestrierung
-- **OpenAI-kompatibel**: Standard-APIs für Embedding und LLM
+- ✅ **Chat-Assistent**: Interaktive RAG-basierte Konversation mit Quellenangaben
+- ✅ **Wissensverwaltung**: Dokument-Upload und manuelle Markdown-Eingabe
+- ✅ **Hybrid Search**: Kombination aus Vektor- und Keyword-Suche via Meilisearch
+- ✅ **Streaming Responses**: Real-time Token-Streaming vom LLM
+- ✅ **Ressourcenoptimiert**: Kompakte Modelle und effiziente Container-Orchestrierung
+- ✅ **OpenAI-kompatibel**: Standard-APIs für Embedding und LLM
+- ✅ **Vollständige RAG-Pipeline**: Parsing, Chunking, Embedding, Indexierung, Retrieval, Generation
 
 ## 📁 Monorepo-Struktur
 
@@ -186,6 +187,46 @@ pnpm docker:logs      # Logs anzeigen
 | LLM Inference | 4GB | 2.0 | 8GB / 4 CPU |
 
 **Total:** Min. 8GB RAM, 4 CPU Cores
+
+## 🔧 Troubleshooting
+
+### Services starten nicht
+```bash
+# Status checken
+docker-compose -f docker/docker-compose.yml ps
+
+# Logs für spezifischen Service
+docker-compose -f docker/docker-compose.yml logs llm-inference
+
+# Service neu starten
+docker-compose -f docker/docker-compose.yml restart llm-inference
+```
+
+### "Model not found" Error
+Das LLM-Modell wurde nicht heruntergeladen. Siehe Quick Start Schritt 2.
+
+### Port bereits belegt
+Andere Anwendung nutzt Port 5173 oder 8080:
+```bash
+# Ports in docker-compose.yml ändern:
+ports:
+  - "5174:5173"  # Frontend auf 5174
+  - "8081:8080"  # Backend auf 8081
+```
+
+### Out of Memory
+Docker Memory-Limit erhöhen:
+- **Docker Desktop:** Settings → Resources → Memory → Min. 8GB
+
+### Frontend zeigt Fehler
+1. Backend läuft nicht → `pnpm dev:backend` oder Docker-Services starten
+2. CORS-Error → Backend API URL in `.env` prüfen
+
+### Meilisearch Index nicht initialisiert
+```bash
+# Manuell initialisieren
+docker exec rag-meilisearch /init_meilisearch.sh
+```
 
 ## 🤝 Beitragen
 
